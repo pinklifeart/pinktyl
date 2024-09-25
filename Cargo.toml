@@ -11,6 +11,7 @@ defmt-rtt = { version = "0.4.1" }
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 rtic = { version = "2.0.0", features = ["thumbv7-backend"] }
 stm32f4xx-hal = { version = "0.21.0", features = ["stm32f411", "usb_fs"] }
+usbd-human-interface-device = "0.5.0"
 # TODO add a monotonic if you use scheduling
 # rtic-monotonics = { version = "1.0.0", features = [ "cortex-m-systick" ]}
 [[bin]]

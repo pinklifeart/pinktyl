@@ -1,6 +1,9 @@
 #![no_main]
 #![no_std]
 
+mod key;
+mod layout;
+
 use core::sync::atomic::{AtomicUsize, Ordering};
 use defmt_rtt as _;
 use panic_probe as _; // global logger
