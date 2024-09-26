@@ -3,10 +3,9 @@
 use usbd_human_interface_device::page::Keyboard;
 
 pub struct Key {
-    keycode: Keyboard,
-    keycode_alt: Keyboard,
-    is_active: bool,
-    debounce_count: u8,
+    pub keycodes: [Keyboard; crate::matrix::LAYERS],
+    pub is_active: bool,
+    pub debounce_count: u8,
 }
 
 impl Key {
@@ -25,4 +24,15 @@ impl Key {
     pub fn get_state(&self) -> bool {
         self.is_active
     }
+}
+// TODO: Fix this macro so I dont have to spam ErrorUndefine all over the place (〃＞＿＜;〃)
+#[macro_export]
+macro_rules! create_key {
+    ([ $($key:ident),+ ]) => {
+        $crate::key::Key {
+            keycodes: [$($key),+],
+            is_active: false,
+            debounce_count: 0,
+        }
+    };
 }

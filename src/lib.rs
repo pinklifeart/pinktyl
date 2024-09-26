@@ -1,8 +1,10 @@
 #![no_main]
 #![no_std]
 
+#[macro_use]
 mod key;
 mod layout;
+mod matrix;
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 use defmt_rtt as _;
