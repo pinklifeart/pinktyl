@@ -2,9 +2,9 @@
 #![no_std]
 
 #[macro_use]
-mod key;
-mod layout;
-mod matrix;
+pub mod key;
+pub mod layout;
+pub mod matrix;
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 use defmt_rtt as _;
