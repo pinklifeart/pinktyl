@@ -51,14 +51,13 @@ impl Matrix {
         }
     }
 
-    // TODO: Implement a function that returns IntoIterator<Item = Keyboard>
     pub fn report_active(&self) -> Vec<Keyboard, KEYS> {
         self.layout
             .iter()
             .flatten()
             .map(|key| {
                 if key.is_active {
-                    key.keycodes[self.active_layer].clone().into()
+                    key.keycodes[self.active_layer].into()
                 } else {
                     Keyboard::NoEventIndicated
                 }

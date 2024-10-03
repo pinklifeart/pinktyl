@@ -3,41 +3,75 @@
 use defmt::Format;
 use usbd_human_interface_device::page::Keyboard;
 
-#[derive(Debug, Format, Clone)]
-pub enum KeyEvent {
+#[derive(Debug, Format, Clone, Copy)]
+pub enum KeyAction {
     LayerShiftHold,
     KeyCode(Keyboard),
-    None,
+    NoAction,
 }
-impl From<Keyboard> for KeyEvent {
+
+impl From<Keyboard> for KeyAction {
     fn from(value: Keyboard) -> Self {
         Self::KeyCode(value)
     }
 }
 
-impl From<KeyEvent> for Keyboard {
-    fn from(value: KeyEvent) -> Self {
+impl From<KeyAction> for Keyboard {
+    fn from(value: KeyAction) -> Self {
         match value {
-            KeyEvent::KeyCode(k) => k,
-            KeyEvent::LayerShiftHold => Keyboard::NoEventIndicated,
-            KeyEvent::None => Keyboard::ErrorUndefine,
+            KeyAction::KeyCode(k) => k,
+            KeyAction::LayerShiftHold => Keyboard::NoEventIndicated,
+            KeyAction::NoAction => Keyboard::ErrorUndefine,
         }
     }
 }
 
-pub struct Key {
-    pub keycodes: [KeyEvent; crate::matrix::LAYERS],
-    pub is_active: bool,
-    pub debounce_count: u8,
-}
-
-#[derive(Format)]
+#[derive(Format, Debug, Clone, Copy)]
 pub enum StateChange {
     SetActive,
     SetInactive,
     DebounceTick,
     LayerUp,
     LayerDown,
+    NoChange,
+}
+
+impl TryFrom<u8> for StateChange {
+    type Error = &'static str;
+    fn try_from(value: u8) -> Result<StateChange, Self::Error> {
+        match value {
+            0 => Ok(Self::SetActive),
+            1 => Ok(Self::SetInactive),
+            2 => Ok(Self::DebounceTick),
+            3 => Ok(Self::LayerUp),
+            4 => Ok(Self::LayerDown),
+            5 => Ok(Self::NoChange),
+            _ => Err("No corresponding StateChange variant for the provided u8 value."),
+        }
+    }
+}
+
+#[derive(Debug, Format)]
+pub struct Message {
+    pub state_change: StateChange,
+    pub row: usize,
+    pub col: usize,
+}
+
+impl Message {
+    pub fn new(state_change: StateChange, row: usize, col: usize) -> Self {
+        Message {
+            state_change,
+            row,
+            col,
+        }
+    }
+}
+
+pub struct Key {
+    pub keycodes: [KeyAction; crate::matrix::LAYERS],
+    pub is_active: bool,
+    pub debounce_count: u8,
 }
 
 impl Key {
@@ -57,7 +91,7 @@ impl Key {
                 self.set_active();
                 self.set_debounce(debounce_limit);
                 match self.keycodes[active_layer] {
-                    KeyEvent::LayerShiftHold => Some(StateChange::LayerUp),
+                    KeyAction::LayerShiftHold => Some(StateChange::LayerUp),
                     _ => Some(StateChange::SetActive),
                 }
             }
@@ -65,7 +99,7 @@ impl Key {
             self.set_inactive();
             self.set_debounce(debounce_limit);
             match self.keycodes[active_layer] {
-                KeyEvent::LayerShiftHold => Some(StateChange::LayerDown),
+                KeyAction::LayerShiftHold => Some(StateChange::LayerDown),
                 _ => Some(StateChange::SetInactive),
             }
         } else {
@@ -85,7 +119,7 @@ impl Key {
         self.debounce_count = count;
     }
     #[inline(always)]
-    fn tick_debounce(&mut self) {
+    pub fn tick_debounce(&mut self) {
         self.debounce_count = self.debounce_count.saturating_sub(1)
     }
     pub fn is_active(&self) -> bool {

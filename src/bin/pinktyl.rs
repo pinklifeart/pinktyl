@@ -15,8 +15,15 @@ mod app {
         gpio::{EPin, Input, Output},
         otg_fs::{UsbBus, USB},
         prelude::*,
+        serial::{self, Config, Serial},
     };
-    use pinktyl::{key::StateChange::*, matrix::Matrix};
+    use pinktyl::{
+        key::{
+            Message,
+            StateChange::{self, *},
+        },
+        matrix::Matrix,
+    };
     use rtic_monotonics::systick::prelude::*;
     use stm32f4xx_hal as hal;
     use usb_device::{
@@ -34,8 +41,14 @@ mod app {
 
     const OUT_PINS: usize = 6;
     const IN_PINS: usize = 6;
-    const DEBOUNCE_CYCLE_COUNT: u8 = 5;
-    // static mut EP_MEMORY: [u32; 1024] = [0; 1024];
+    const DEBOUNCE_CYCLE_COUNT: u8 = 3;
+
+    // Scan offset should be equal to the amount of column pins in the left half
+    #[cfg(feature = "left")]
+    const SCAN_OFFSET: usize = 0;
+    #[cfg(feature = "right")]
+    const SCAN_OFFSET: usize = 6;
+
     #[shared]
     struct Shared {
         keyboard: UsbHidClass<
@@ -51,6 +64,9 @@ mod app {
     struct Local {
         outputs: [EPin<Output>; OUT_PINS],
         inputs: [EPin<Input>; IN_PINS],
+        tx: serial::Tx<hal::pac::USART1>,
+        rx: serial::Rx<hal::pac::USART1>,
+        buffer: [u8; 4],
     }
 
     #[init(local = [
@@ -76,9 +92,22 @@ mod app {
         let gpioa = dp.GPIOA.split();
         let gpiob = dp.GPIOB.split();
 
-        // let delay = dp.TIM1.delay_ms(&clocks);
+        let usart_pins = (gpiob.pb6, gpiob.pb7);
+        let mut serial = Serial::new(
+            dp.USART1,
+            usart_pins,
+            Config::default().baudrate(36_400.bps()).wordlength_8(),
+            &clocks,
+        )
+        .unwrap()
+        .with_u8_data();
+        serial.listen(serial::Event::RxNotEmpty);
+        let (tx, rx) = serial.split();
+        let buffer = [0_u8; 4];
 
-        let outputs = [
+        // Mutability is necessary when building for right half to reverse an array of pins
+        #[allow(unused_mut)]
+        let mut outputs = [
             gpioa.pa5.into_push_pull_output().erase(),
             gpioa.pa4.into_push_pull_output().erase(),
             gpioa.pa3.into_push_pull_output().erase(),
@@ -95,6 +124,9 @@ mod app {
             gpiob.pb9.into_pull_down_input().erase(),
         ];
 
+        #[cfg(feature = "right")]
+        outputs.reverse();
+
         let usb = USB {
             usb_global: dp.OTG_FS_GLOBAL,
             usb_device: dp.OTG_FS_DEVICE,
@@ -103,8 +135,6 @@ mod app {
             pin_dp: gpioa.pa12.into(),
             hclk: clocks.hclk(),
         };
-
-        // let ep_memory: &'static mut [u32] = unsafe { &mut EP_MEMORY };
 
         *cx.local.usb_bus = Some(hal::otg_fs::UsbBus::new(usb, cx.local.ep_memory));
         let keyboard = UsbHidClassBuilder::new()
@@ -123,7 +153,6 @@ mod app {
         .build();
 
         kb_tick::spawn().ok();
-        // kb_poll::spawn().ok();
         scan::spawn().ok();
         kb_report::spawn().ok();
         defmt::info!("Tasks spawned, init complete");
@@ -134,11 +163,16 @@ mod app {
                 usb_dev,
                 matrix: Matrix::new(),
             },
-            Local { outputs, inputs },
+            Local {
+                outputs,
+                inputs,
+                tx,
+                rx,
+                buffer,
+            },
         )
     }
 
-    // Optional idle, can be removed if not needed.
     #[idle]
     fn idle(_: idle::Context) -> ! {
         defmt::info!("idle");
@@ -201,12 +235,14 @@ mod app {
         }
     }
 
-    #[task(priority = 2, local = [outputs, inputs], shared = [matrix])]
+    #[task(priority = 2, local = [outputs, inputs, tx], shared = [matrix,usb_dev])]
     async fn scan(mut cx: scan::Context) {
         loop {
             (0..OUT_PINS).for_each(|col| {
                 cx.local.outputs[col].set_high();
                 (0..IN_PINS).for_each(|row| {
+                    #[cfg(any(feature = "right", feature = "left"))]
+                    let col = col + SCAN_OFFSET;
                     if let Some(m) = cx.shared.matrix.lock(|matrix| {
                         matrix.layout[row][col].sync_state(
                             cx.local.inputs[row].is_high(),
@@ -214,24 +250,108 @@ mod app {
                             matrix.active_layer,
                         )
                     }) {
-                        match m {
-                            LayerUp => cx.shared.matrix.lock(|matrix| matrix.increment_layer()),
-                            LayerDown => cx.shared.matrix.lock(|matrix| matrix.decrement_layer()),
-                            SetActive => {
-                                defmt::info!("{:?}", m)
-                            }
-                            SetInactive => {
-                                defmt::info!("{:?}", m)
-                            }
-                            _ => {}
+                        if cx
+                            .shared
+                            .usb_dev
+                            .lock(|usb_dev| usb_dev.state() != UsbDeviceState::Configured)
+                        {
+                            cx.local.tx.bwrite_all(&serialize(m, row, col)).unwrap();
+                            cx.local.tx.bflush().unwrap();
                         }
-                        defmt::info!("Changed state to: {:?}", m);
-                        // TODO: Add USART message logic based on message variants
+                        {
+                            match m {
+                                LayerUp => cx.shared.matrix.lock(|matrix| matrix.increment_layer()),
+                                LayerDown => {
+                                    cx.shared.matrix.lock(|matrix| matrix.decrement_layer())
+                                }
+                                _ => {}
+                            }
+                        }
+                        // match m {
+                        //     // TODO: Add USART message logic based on message variants
+                        //     LayerUp => cx.shared.matrix.lock(|matrix| matrix.increment_layer()),
+                        //     LayerDown => cx.shared.matrix.lock(|matrix| matrix.decrement_layer()),
+                        //     SetActive => {
+                        //         if cx
+                        //             .shared
+                        //             .usb_dev
+                        //             .lock(|usb_dev| usb_dev.state() != UsbDeviceState::Configured)
+                        //         {
+                        //             cx.local
+                        //                 .tx
+                        //                 .bwrite_all(&serialize(SetActive, row, col))
+                        //                 .unwrap();
+                        //             cx.local.tx.bflush().unwrap();
+                        //         }
+                        //     }
+                        //     SetInactive => {
+                        //         if cx
+                        //             .shared
+                        //             .usb_dev
+                        //             .lock(|usb_dev| usb_dev.state() != UsbDeviceState::Configured)
+                        //         {
+                        //             cx.local
+                        //                 .tx
+                        //                 .bwrite_all(&serialize(SetInactive, row, col))
+                        //                 .unwrap();
+                        //             cx.local.tx.bflush().unwrap();
+                        //         }
+                        //     }
+                        //     _ => {}
+                        // }
                     }
                 });
                 cx.local.outputs[col].set_low();
             });
             Mono::delay(10.millis()).await;
         }
+    }
+
+    #[task(binds = USART1,priority = 3, local = [rx,buffer])]
+    fn usart_rx(cx: usart_rx::Context) {
+        if let Ok(byte) = cx.local.rx.read() {
+            cx.local.buffer.rotate_left(1);
+            cx.local.buffer[3] = byte;
+
+            if cx.local.buffer[3] == b'\n' {
+                if let Some(message) = try_deserialize(cx.local.buffer) {
+                    handle_message::spawn(message).unwrap();
+                }
+            }
+        }
+    }
+
+    fn serialize(state: StateChange, row: usize, col: usize) -> [u8; 4] {
+        [state as u8, row as u8, col as u8, b'\n']
+    }
+
+    fn try_deserialize(message: &[u8; 4]) -> Option<Message> {
+        if let Ok(sc) = StateChange::try_from(message[0]) {
+            Some(Message::new(sc, message[1] as usize, message[2] as usize))
+        } else {
+            None
+        }
+    }
+
+    #[task(priority = 3, shared = [matrix])]
+    async fn handle_message(mut cx: handle_message::Context, message: Message) {
+        cx.shared.matrix.lock(|matrix| match message.state_change {
+            SetActive => matrix.layout[message.row][message.col].sync_state(
+                true,
+                DEBOUNCE_CYCLE_COUNT,
+                matrix.active_layer,
+            ),
+            SetInactive => matrix.layout[message.row][message.col].sync_state(
+                false,
+                DEBOUNCE_CYCLE_COUNT,
+                matrix.active_layer,
+            ),
+            DebounceTick => {
+                matrix.layout[message.row][message.col].tick_debounce();
+                Some(DebounceTick)
+            }
+
+            _ => None,
+        });
     }
 }

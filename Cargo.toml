@@ -1,6 +1,6 @@
 [package]
-# TODO fix `authors` and `name` if you didn't use `cargo-generate`
 name = "pinktyl"
+authors = ["pinklifeart <dev@pinklife.icu>"]
 edition = "2021"
 version = "0.1.0"
 
@@ -17,8 +17,11 @@ stm32f4xx-hal = { version = "0.21.0", features = ["stm32f411", "usb_fs"] }
 systick-monotonic = "1.0.1"
 usb-device = { version = "0.3.2", features = ["defmt"] }
 usbd-human-interface-device = { version = "0.5.0", features = ["defmt"] }
-# TODO add a monotonic if you use scheduling
-# rtic-monotonics = { version = "1.0.0", features = [ "cortex-m-systick" ]}
+
+[features]
+left = []
+right = []
+
 [[bin]]
 name = "pinktyl"
 test = false

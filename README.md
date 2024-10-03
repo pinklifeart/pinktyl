@@ -2,7 +2,7 @@
 
 > Questionable code ahead, beware~
 
-Firmware for my ergo keyboard written in rust. Very much work in progress.
+Firmware for my ergo keyboard running on WeAct blackpills (STM32f411CEU6) written in rust. Very much work in progress.
 
 ## Special thanks:
 - [stm32f4xx-hal](https://crates.io/crates/stm32f4xx-hal)
