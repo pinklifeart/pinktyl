@@ -317,7 +317,14 @@ mod app {
                 matrix.layout[message.row][message.col].tick_debounce();
                 Some(DebounceTick)
             }
-            // TODO: Add handling for fn key to be able to connect usb on both sides
+            LayerUp => {
+                matrix.increment_layer();
+                Some(LayerUp)
+            }
+            LayerDown => {
+                matrix.decrement_layer();
+                Some(LayerDown)
+            }
             _ => None,
         });
     }
