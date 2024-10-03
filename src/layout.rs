@@ -18,8 +18,8 @@ pub const LAYOUT: crate::matrix::Layer = crate::create_matrix!(
     [KeyCode(H),NoAction],[KeyCode(J),KeyCode(LeftArrow)],[KeyCode(K),KeyCode(DownArrow)],[KeyCode(L),KeyCode(RightArrow)],[KeyCode(Semicolon),NoAction],[KeyCode(Apostrophe),NoAction]],
 [[KeyCode(CapsLock),NoAction],[KeyCode(Z),NoAction],[KeyCode(X),NoAction],[KeyCode(C),NoAction],[KeyCode(V),NoAction],[KeyCode(B),NoAction],
     [KeyCode(N),NoAction],[KeyCode(M),NoAction],[KeyCode(Comma),NoAction],[KeyCode(Dot),NoAction],[KeyCode(ForwardSlash),NoAction],[KeyCode(Backslash),NoAction]],
-[[KeyCode(PageDown),KeyCode(End)],[KeyCode(PageUp),KeyCode(Home)],[KeyCode(LeftShift),NoAction],[KeyCode(Space),NoAction],[KeyCode(LeftControl),NoAction],[LayerShiftHold,LayerShiftHold],
-    [KeyCode(RightGUI),NoAction],[KeyCode(RightControl),NoAction],[KeyCode(ReturnEnter),NoAction],[KeyCode(RightShift),NoAction],[KeyCode(LeftBrace),NoAction],[KeyCode(RightBrace),NoAction]],
-[[NoAction,NoAction],[NoAction,NoAction],[NoAction,NoAction],[NoAction,NoAction],[KeyCode(LeftAlt),NoAction],[KeyCode(DeleteBackspace),NoAction],
-    [KeyCode(DeleteForward),NoAction],[KeyCode(RightAlt),NoAction],[NoAction,NoAction],[NoAction,NoAction],[NoAction,NoAction],[NoAction,NoAction]]
+[[KeyCode(PageDown),KeyCode(End)],[KeyCode(PageUp),KeyCode(Home)],[KeyCode(LeftShift),KeyCode(LeftShift)],[KeyCode(Space),NoAction],[KeyCode(LeftControl),KeyCode(LeftControl)],[LayerShiftHold,LayerShiftHold],
+    [KeyCode(RightGUI),KeyCode(RightGUI)],[KeyCode(RightControl),KeyCode(RightControl)],[KeyCode(ReturnEnter),NoAction],[KeyCode(RightShift),KeyCode(RightShift)],[KeyCode(LeftBrace),NoAction],[KeyCode(RightBrace),NoAction]],
+[[NoAction,NoAction],[NoAction,NoAction],[NoAction,NoAction],[NoAction,NoAction],[KeyCode(DeleteBackspace),NoAction],[KeyCode(LeftAlt),KeyCode(LeftAlt)],
+    [KeyCode(RightAlt),NoAction],[KeyCode(DeleteForward),NoAction],[NoAction,NoAction],[NoAction,NoAction],[NoAction,NoAction],[NoAction,NoAction]]
 );
