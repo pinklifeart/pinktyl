@@ -75,7 +75,7 @@ mod app {
     ])]
     fn init(cx: init::Context) -> (Shared, Local) {
         defmt::info!("init");
-        Mono::start(cx.core.SYST, 80_000_000);
+        Mono::start(cx.core.SYST, 48_000_000);
 
         let dp = cx.device;
         let rcc = dp.RCC.constrain();
@@ -83,7 +83,7 @@ mod app {
         let clocks = rcc
             .cfgr
             .use_hse(25.MHz())
-            .sysclk(80.MHz())
+            .sysclk(48.MHz())
             .use_hse(25.MHz())
             .freeze();
 
