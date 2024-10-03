@@ -257,8 +257,7 @@ mod app {
                         {
                             cx.local.tx.bwrite_all(&serialize(m, row, col)).unwrap();
                             cx.local.tx.bflush().unwrap();
-                        }
-                        {
+                        } else {
                             match m {
                                 LayerUp => cx.shared.matrix.lock(|matrix| matrix.increment_layer()),
                                 LayerDown => {
@@ -267,38 +266,6 @@ mod app {
                                 _ => {}
                             }
                         }
-                        // match m {
-                        //     // TODO: Add USART message logic based on message variants
-                        //     LayerUp => cx.shared.matrix.lock(|matrix| matrix.increment_layer()),
-                        //     LayerDown => cx.shared.matrix.lock(|matrix| matrix.decrement_layer()),
-                        //     SetActive => {
-                        //         if cx
-                        //             .shared
-                        //             .usb_dev
-                        //             .lock(|usb_dev| usb_dev.state() != UsbDeviceState::Configured)
-                        //         {
-                        //             cx.local
-                        //                 .tx
-                        //                 .bwrite_all(&serialize(SetActive, row, col))
-                        //                 .unwrap();
-                        //             cx.local.tx.bflush().unwrap();
-                        //         }
-                        //     }
-                        //     SetInactive => {
-                        //         if cx
-                        //             .shared
-                        //             .usb_dev
-                        //             .lock(|usb_dev| usb_dev.state() != UsbDeviceState::Configured)
-                        //         {
-                        //             cx.local
-                        //                 .tx
-                        //                 .bwrite_all(&serialize(SetInactive, row, col))
-                        //                 .unwrap();
-                        //             cx.local.tx.bflush().unwrap();
-                        //         }
-                        //     }
-                        //     _ => {}
-                        // }
                     }
                 });
                 cx.local.outputs[col].set_low();
